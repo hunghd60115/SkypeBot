@@ -1,35 +1,26 @@
 package bittrex;
 
-// Include the following imports to use table APIs
-import bittrex.entity.Coin;
 import bittrex.entity.SettingInfo;
 import bittrex.entity.TrackingCoin;
-import bittrex.entity.enums.Exchange;
 import com.microsoft.azure.storage.*;
 import com.microsoft.azure.storage.table.*;
 import com.microsoft.azure.storage.table.TableQuery.*;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /**\
  * Created by Onsiter on 2017/12/22.
  */
 public class StorageHandler {
 
-    public static final String storageConnectionString = "xxx=";
-
+    public static final String storageConnectionString = "";
     static final String TABLE_COIN = "TrackingCoin";
     static final String TABLE_SETTING = "SettingInfo";
-    static final boolean GROUP = true;
-    static final boolean USER = false;
 
     // Define constants for filters.
     final static String PARTITION_KEY = "PartitionKey";
     final static String ROW_KEY = "RowKey";
-    final String TIMESTAMP = "Timestamp";
 
     static CloudTable cloudTable;
     static CloudTableClient tableClient;

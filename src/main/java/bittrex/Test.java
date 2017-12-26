@@ -26,8 +26,10 @@ public class Test {
     public static void main(String[] args) throws Exception {
 
         Bittrex btx = new Bittrex();
+        btx.setKey("xxx","xxx");
+        Order order = btx.getOrder("001983a9-eb2b-483e-a38a-47721324a042");
 
-        System.out.println(btx.getBalance("POT").toString());
+            System.out.println(order.toString());
 
     }
 

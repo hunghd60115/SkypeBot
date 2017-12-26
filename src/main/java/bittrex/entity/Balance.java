@@ -27,11 +27,11 @@ public class Balance extends Result {
 
     public String toString() {
         return "{ \n" +
-                " Currency : " + this.currency + ",\n" +
-                " Balance : " + this.balance + ",\n" +
-                " Available : " + this.available + ",\n" +
-                " Pending : " + this.pending + ",\n" +
-                " Uuid : " + this.uuid + "\n" +
+                " Currency : " + currency + ",\n" +
+                " Balance : " + balance + ",\n" +
+                " Available : " + available + ",\n" +
+                " Pending : " + pending + ",\n" +
+                " Uuid : " + uuid + "\n" +
                 "}";
     }
 }

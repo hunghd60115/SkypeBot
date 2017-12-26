@@ -21,6 +21,7 @@ import org.apache.http.util.EntityUtils;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -110,6 +111,19 @@ public class Bittrex {
         return result.result;
     }
 
+    protected Order getOrder(String uuid) throws BittrexException, IOException {
+        String path = "/v1.1/account/getorder";
+        long nonce = System.currentTimeMillis();
+        List<NameValuePair> nameValuePair = new ArrayList<>();
+        nameValuePair.add(new BasicNameValuePair("nonce", String.valueOf(nonce)));
+        nameValuePair.add(new BasicNameValuePair("apikey", apiKey));
+        nameValuePair.add(new BasicNameValuePair("uuid", uuid));
+
+        URIBuilder builder = getPrivateUriBuilder(path).setParameters(nameValuePair);
+        GetOrderResponse result = doHttpGet(builder, GetOrderResponse.class, getPrivateRequestHeader(builder.toString()));
+        return result.result;
+    }
+
     protected  Balance getBalance(String currency) throws BittrexException, IOException {
         String path = "/v1.1/account/getbalance";
         long nonce = System.currentTimeMillis();
@@ -121,6 +135,49 @@ public class Bittrex {
         URIBuilder builder = getPrivateUriBuilder(path).setParameters(nameValuePair);
         BalanceResponse result = doHttpGet(builder, BalanceResponse.class, getPrivateRequestHeader(builder.toString()));
         return result.result;
+    }
+
+    protected MarketResponse cancelOrder(String uuid) throws BittrexException, IOException {
+        String path = "/v1.1/market/cancel";
+        long nonce = System.currentTimeMillis();
+        List<NameValuePair> nameValuePair = new ArrayList<>();
+        nameValuePair.add(new BasicNameValuePair("nonce", String.valueOf(nonce)));
+        nameValuePair.add(new BasicNameValuePair("apikey", apiKey));
+        nameValuePair.add(new BasicNameValuePair("uuid", uuid));
+
+        URIBuilder builder = getPrivateUriBuilder(path).setParameters(nameValuePair);
+        MarketResponse result = doHttpGet(builder, MarketResponse.class, getPrivateRequestHeader(builder.toString()));
+        return result;
+    }
+
+    protected MarketResponse buyLimit(Exchange market, BigDecimal quantity, BigDecimal rate) throws BittrexException, IOException {
+        String path = "/v1.1/market/buylimit";
+        long nonce = System.currentTimeMillis();
+        List<NameValuePair> nameValuePair = new ArrayList<>();
+        nameValuePair.add(new BasicNameValuePair("nonce", String.valueOf(nonce)));
+        nameValuePair.add(new BasicNameValuePair("apikey", apiKey));
+        nameValuePair.add(new BasicNameValuePair("market", market.getCode()));
+        nameValuePair.add(new BasicNameValuePair("quantity", quantity.toString()));
+        nameValuePair.add(new BasicNameValuePair("rate", rate.toString()));
+
+        URIBuilder builder = getPrivateUriBuilder(path).setParameters(nameValuePair);
+        MarketResponse result = doHttpGet(builder, MarketResponse.class, getPrivateRequestHeader(builder.toString()));
+        return result;
+    }
+
+    protected MarketResponse sellLimit(Exchange market, BigDecimal quantity, BigDecimal rate) throws BittrexException, IOException {
+        String path = "/v1.1/market/selllimit";
+        long nonce = System.currentTimeMillis();
+        List<NameValuePair> nameValuePair = new ArrayList<>();
+        nameValuePair.add(new BasicNameValuePair("nonce", String.valueOf(nonce)));
+        nameValuePair.add(new BasicNameValuePair("apikey", apiKey));
+        nameValuePair.add(new BasicNameValuePair("market", market.getCode()));
+        nameValuePair.add(new BasicNameValuePair("quantity", quantity.toString()));
+        nameValuePair.add(new BasicNameValuePair("rate", rate.toString()));
+
+        URIBuilder builder = getPrivateUriBuilder(path).setParameters(nameValuePair);
+        MarketResponse result = doHttpGet(builder, MarketResponse.class, getPrivateRequestHeader(builder.toString()));
+        return result;
     }
 
     public Ticker getTicker(Exchange exchange) throws BittrexException, IOException {

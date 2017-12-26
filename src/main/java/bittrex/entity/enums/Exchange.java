@@ -207,6 +207,7 @@ public enum Exchange {
     BTC_ZCL("BTC-ZCL"),
     BTC_ZEC("BTC-ZEC"),
     BTC_ZEN("BTC-ZEN"),
+    USDT_BTC("USDT-BTC"),
     BTC_SAFEX("BTC-SAFEX");
 
     private final String exchange;

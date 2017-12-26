@@ -2,14 +2,18 @@ package bittrex;
 
 import bittrex.entity.*;
 import bittrex.entity.enums.Exchange;
+import bittrex.entity.response.MarketResponse;
 import fr.delthas.skype.Group;
 import fr.delthas.skype.Skype;
 import fr.delthas.skype.User;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Created by HungHD1 on 2017/12/20.
@@ -41,12 +45,58 @@ public class SkypeHandler {
             " Ex   gob: pot, 20\n" +
             "\n" +
             "8) Get sum each 10 order vol - gov: (coin), (number must chia het cho 10)\n" +
-            " Ex   gov: pot, 40";
+            " Ex   gov: pot, 40\n" +
+            "\n" +
+            "9) Get current USDT of BTC\n" +
+            "  Ex:   getbtc";
+
+    private final String ORDER_MESSAGE = "1) Add, edit, remove key. \n" +
+            " setkey: ( key), (secrect)   Ex: setkey: xxxxx, xxxxx\n" +
+            " getkey: \n" +
+            " rmkey:\n" +
+            "\n" +
+            "2) Get Balance, Available of inputed coin. \n" +
+            " gb: (coin)       Ex: gb: BTC   or gb: pot ...\n" +
+            "\n" +
+            "  \n" +
+            "3) Buy coin. Input coin's name, price want to buy, and percent of available btc want to buy\n" +
+            "  buy: (coin), (price), (percent)\n" +
+            "  Ex:  buy: pot, 0.0002300, 20 \n" +
+            "  \n" +
+            "4) Buy coin immediately, buy with the ask price. Input coin's name and percent of available btc want to buy.\n" +
+            "  buynow: (coin), (percent)\n" +
+            "  Ex:   buynow: POT, 30\n" +
+            "  \n" +
+            "5) Sell coin. Input coin's name, price want to sell, and percent of available coin want to sell\n" +
+            "  sell: (coin), (price), (percent)\n" +
+            "  Ex:  sell: pot, 0.0002500, 70\n" +
+            "  \n" +
+            "6) sell coin immediately. Input coin's name and percent of available coin want to sell.\n" +
+            "  sellnow: (coin), (percent)\n" +
+            "  Ex:   sellnow: POT, 100\n" +
+            "\n" +
+            "7) Get order by orderID: \n" +
+            "  go: (uuid)     Ex: go: 90bdf6fa-b99b-4353-abb6-34ad1fb001c8\n" +
+            " \n" +
+            "8) Cancel order by orderID:\n" +
+            "  co: (uuid)    Ex: co: 90bdf6fa-b99b-4353-abb6-34ad1fb001c8\n" +
+            " \n" +
+            "9) Get all open orders. \n" +
+            "  goo \n" +
+            "\n" +
+            "10) cancel all order (buy + sell) of one coin. \n" +
+            "  cao: (coin)    Ex: cao: POT ";
+
+    private final String LIMIT_SELL = "LIMIT_SELL";
+    private final String LIMIT_BUY = "LIMIT_BUY";
+    // https://www.reddit.com/r/CryptoCurrency/comments/7ecga1/how_small_an_amount_can_you_trade_on_bittrex/
+    private final BigDecimal MIN_TRADE = new BigDecimal(0.0005);
+
     private Skype skype;
     private final BigDecimal WHALE = new BigDecimal(0.5);
 
     public SkypeHandler() {
-        skype = new Skype("xxxxx@gmail.com", "xxxxx");
+        skype = new Skype("xxxxx@gmail.com", "xxxxx^");
     }
 
     public void init() {
@@ -97,7 +147,7 @@ public class SkypeHandler {
     }
 
     private void handleGroupMessage(Group group, User user, String message) {
-        System.out.println("[Group] GroupID: " + group.getId() + ", message: " + message);
+//        System.out.println("[Group] GroupID: " + group.getId() + ", message: " + message);
         if (message.toLowerCase().contains("hello")) {
             group.sendMessage("Hello " + user.getUsername());
         } else if (message.toLowerCase().contains("set:")) {
@@ -108,8 +158,7 @@ public class SkypeHandler {
             String listCoint = getCurrentTrackingCoin(group.getId());
             group.sendMessage(listCoint);
         } else if (message.toLowerCase().contains("rm:")) {
-            removeTrackingCoin(message, group.getId());
-            group.sendMessage("Remove success");
+            group.sendMessage(removeTrackingCoin(message, group.getId()));
         } else if (message.toLowerCase().contains("setdif:")) {
             String result = setDiff(group.getId(), message);
             group.sendMessage(result);
@@ -119,13 +168,22 @@ public class SkypeHandler {
             group.sendMessage(getOrderBook(message));
         } else if (message.toLowerCase().contains("gov:")) {
             group.sendMessage(getVol(message));
+        } else if (message.toLowerCase().contains("getbtc")) {
+            group.sendMessage("Will available soon");
         } else if (message.toLowerCase().contains("-help")) {
             group.sendMessage(HELP_MESSAGE);
         }
     }
 
     private void handleUserMessage(User user, String message) {
-        System.out.println("[User] Id: " + user.getUsername() + ", message:" + message);
+        if (user.getUsername().equals("hunghd60115")) {
+            if (message.toLowerCase().contains("setinterval:")) {
+                int interval = Integer.parseInt(message.split(":")[1].trim());
+                MainProcess.timeInterval = interval;
+            } else if (message.toLowerCase().contains("getinterval")) {
+                user.sendMessage("Interval: " + MainProcess.timeInterval);
+            }
+        }
         if (message.toLowerCase().contains("quit")) {
             System.out.println("[User] quit");
             if (user.getUsername().equals("hunghd60115")) {
@@ -144,9 +202,7 @@ public class SkypeHandler {
             String listCoint = getCurrentTrackingCoin(user.getUsername());
             user.sendMessage(listCoint);
         } else if (message.toLowerCase().contains("rm:")) {
-            removeTrackingCoin(message, user.getUsername());
-            user.sendMessage("Remove success");
-
+            user.sendMessage(removeTrackingCoin(message, user.getUsername()));
         } else if (message.toLowerCase().contains("setdif:")) {
             String result = setDiff(user.getUsername(), message);
             user.sendMessage(result);
@@ -167,8 +223,28 @@ public class SkypeHandler {
                 user.sendMessage(removeKey(user.getUsername()));
             }
 
+        } else if (message.toLowerCase().contains("gb:")) {
+            user.sendMessage(getBalance(message, user.getUsername()));
+        } else if (message.toLowerCase().contains("goo")) {
+            user.sendMessage(getOpenOrders(user.getUsername()));
+        } else if (message.toLowerCase().contains("buy:")) {
+            user.sendMessage(buy(user.getUsername(), message));
+        } else if (message.toLowerCase().contains("sell:")) {
+            user.sendMessage(sell(user.getUsername(), message));
+        } else if (message.toLowerCase().contains("sellnow:")) {
+            user.sendMessage(sellNow(user.getUsername(), message));
+        } else if (message.toLowerCase().contains("buynow:")) {
+            user.sendMessage(buyNow(user.getUsername(), message));
+        } else if (message.toLowerCase().contains("go:")) {
+            user.sendMessage(getOrder(user.getUsername(), message));
+        } else if (message.toLowerCase().contains("co:")) {
+            user.sendMessage(cancelOrder(user.getUsername(), message));
+        } else if (message.toLowerCase().contains("cao:")) {
+            user.sendMessage(cancelAllOrder(user.getUsername(), message));
         } else if (message.toLowerCase().contains("-help")) {
             user.sendMessage(HELP_MESSAGE);
+        } else if (message.toLowerCase().contains("-xxx")) {
+            user.sendMessage(ORDER_MESSAGE);
         }
     }
 
@@ -189,6 +265,14 @@ public class SkypeHandler {
     }
 
     private void updateTrackingCoin(Group group, User user, String message, String id, boolean isGroup) {
+        if (!isValidInput(message)) {
+            if (isGroup) {
+                group.sendMessage("Missing value, please input value.");
+            } else {
+                user.sendMessage("Missing value, please input value.");
+            }
+            return ;
+        }
         String info = message.split(":")[1].trim();
         Exchange market = null;
         BigDecimal baseValue = null;
@@ -228,7 +312,10 @@ public class SkypeHandler {
         }
     }
 
-    private void removeTrackingCoin(String message, String id) {
+    private String removeTrackingCoin(String message, String id) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
         String info = message.split(":")[1].trim();
         Exchange market = null;
         try {
@@ -240,11 +327,21 @@ public class SkypeHandler {
             if (market != null) {
                 TrackingCoin coin = new TrackingCoin(market.getCode(), id);
                 StorageHandler.removeCoin(coin);
+                return "Remove success!";
             }
+        return "Remove fail! Please check again.";
     }
 
     // Get coin user
     private void getCoin(Group group, User user, String message, boolean isGroup) {
+        if (!isValidInput(message)) {
+            if (isGroup) {
+                group.sendMessage("Missing value, please input value.");
+            } else {
+                user.sendMessage("Missing value, please input value.");
+            }
+            return ;
+        }
         String info = message.split(":")[1].trim();
         Exchange market = null;
         try {
@@ -276,6 +373,9 @@ public class SkypeHandler {
     }
 
     private String setDiff(String id, String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
         String info = message.split(":")[1].trim();
         Integer diff;
         try {
@@ -293,6 +393,9 @@ public class SkypeHandler {
     }
 
     private String getOrderBook(String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
         StringBuilder result = new StringBuilder("");
         String info = message.split(":")[1].trim();
         Exchange market;
@@ -349,6 +452,9 @@ public class SkypeHandler {
     }
 
     private String getVol(String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
         StringBuilder result = new StringBuilder("");
         String info = message.split(":")[1].trim();
         Exchange market;
@@ -410,7 +516,14 @@ public class SkypeHandler {
     }
 
     private String setKey(String id, String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
         String info = message.split(":")[1].trim();
+        String[] keys = info.split(",");
+        if (keys.length != 2) {
+            return "missing Key, secrect. Please set by ( setkey: key, secrect )";
+        }
         String key = info.split(",")[0].trim();
         String secret = info.split(",")[1].trim();
         if ("".equals(key) || "".equals(secret)) {
@@ -429,5 +542,473 @@ public class SkypeHandler {
         settingInfo.setSecrect(null);
         StorageHandler.upsertSetting(settingInfo);
         return "Remove Key OK";
+    }
+
+    private String getBalance(String message, String id) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
+        String currency = message.split(":")[1].trim();
+
+        if (currency.equals("")) {
+            return "Market " + currency + " invalid";
+        }
+
+        SettingInfo settingInfo = StorageHandler.getSettingInfo(id);
+        if (!isInputKey(settingInfo)) {
+            return "Please input your key/secrect";
+        }
+
+        Balance balance;
+        try {
+            Bittrex btx = new Bittrex();
+            btx.setKey(settingInfo.getKey(), settingInfo.getSecrect());
+            balance = btx.getBalance(currency);
+
+        } catch (Exception e) {
+            System.out.println("[getBalance] Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if(balance == null) {
+            return "Balance null, please contact HungHD";
+        }
+
+        return balance.toString();
+    }
+
+
+    private boolean isInputKey(SettingInfo settingInfo) {
+        return settingInfo != null
+                && !(settingInfo.getKey() == null || settingInfo.getKey().equals(""))
+                && !(settingInfo.getSecrect() == null || settingInfo.getSecrect().equals(""));
+
+    }
+
+    private String getOpenOrders(String id) {
+
+        SettingInfo settingInfo = StorageHandler.getSettingInfo(id);
+        if (!isInputKey(settingInfo)) {
+            return "Please input your key/secrect";
+        }
+
+        Order[] orders;
+        try {
+            Bittrex btx = new Bittrex();
+            btx.setKey(settingInfo.getKey(), settingInfo.getSecrect());
+            orders = btx.getOpenOrders();
+
+        } catch (Exception e) {
+            System.out.println("[getOpenOrders] Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if(orders == null || orders.length == 0) {
+            return "Orders empty";
+        }
+
+        StringBuilder result = new StringBuilder("");
+        for (Order order : orders) {
+            result.append(order.toString());
+        }
+
+        return result.toString();
+    }
+
+    private String buy(String id, String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
+        StringBuilder result = new StringBuilder("");
+        String info = message.split(":")[1].trim();
+        Exchange market;
+        BigDecimal base;
+        Integer percent;
+        try {
+            market = Exchange.valueOf("BTC_" + info.split(",")[0].toUpperCase());
+            base = new BigDecimal(info.split(",")[1].trim());
+            percent = Integer.parseInt(info.split(",")[2].trim());
+        } catch (Exception e) {
+            System.out.println("[getOrderBook] Error: " + e.getMessage());
+            return "Exception " + e.getMessage();
+        }
+
+        if (market == null || market.getCode().equals("")) {
+            return "Market " + info + " not exist";
+        }
+        if (percent <= 0 || percent >= 100) {
+            return "Percent invalid " + info.split(",")[2].trim();
+        }
+
+        SettingInfo settingInfo = StorageHandler.getSettingInfo(id);
+        if (!isInputKey(settingInfo)) {
+            return "Please input your key/secrect";
+        }
+
+        Balance balance;
+        Bittrex btx;
+        try {
+            btx = new Bittrex();
+            btx.setKey(settingInfo.getKey(), settingInfo.getSecrect());
+            balance = btx.getBalance("BTC");
+        } catch (Exception e) {
+            System.out.println("[Buy] get balance  Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if (balance == null || balance.available == null || balance.available.equals("")) {
+            return "Don't have available btc";
+        }
+
+        BigDecimal available = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
+
+        if (available.compareTo(MIN_TRADE) <= 0) {
+            return "Minimum trade is 0.0005 btc. Your available is " + balance.available + ", " + percent + "% is " + available;
+        }
+
+        BigDecimal quantity = available.divide(base, 3, RoundingMode.HALF_UP);
+
+        MarketResponse buyResut;
+        try {
+            buyResut = btx.buyLimit(market,quantity,base);
+        } catch (Exception e) {
+            System.out.println("[Buy] Buy  Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if (buyResut == null || !buyResut.success) {
+            return "Buy fail: " + (buyResut == null ? "" : buyResut.message);
+        }
+
+        result.append("Buy ").append(market.getCode()).append(" OK!\n Uuid: ")
+                .append(buyResut.result.uuid);
+
+        return result.toString();
+    }
+
+    private String sell(String id, String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
+        StringBuilder result = new StringBuilder("");
+        String info = message.split(":")[1].trim();
+        Exchange market;
+        BigDecimal sellPrice;
+        Integer percent;
+        try {
+            market = Exchange.valueOf("BTC_" + info.split(",")[0].toUpperCase());
+            sellPrice = new BigDecimal(info.split(",")[1].trim());
+            percent = Integer.parseInt(info.split(",")[2].trim());
+        } catch (Exception e) {
+            System.out.println("[sell] Error: " + e.getMessage());
+            return "Exception " + e.getMessage();
+        }
+
+        if (market == null || market.getCode().equals("")) {
+            return "Market " + info + " not exist";
+        }
+        if (percent <= 0 || percent > 100) {
+            return "Percent invalid " + info.split(",")[2].trim();
+        }
+
+        SettingInfo settingInfo = StorageHandler.getSettingInfo(id);
+        if (!isInputKey(settingInfo)) {
+            return "Please input your key/secrect";
+        }
+
+        Balance balance;
+        Bittrex btx;
+        try {
+            btx = new Bittrex();
+            btx.setKey(settingInfo.getKey(), settingInfo.getSecrect());
+            balance = btx.getBalance(info.split(",")[0].toUpperCase());
+        } catch (Exception e) {
+            System.out.println("[Sell] get balance  Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if (balance == null || balance.available == null || balance.available.equals("")) {
+            return "Don't have available of " + market.getCode();
+        }
+
+        BigDecimal quantity = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
+
+        MarketResponse sellResut;
+        try {
+            sellResut = btx.sellLimit(market, quantity, sellPrice);
+        } catch (Exception e) {
+            System.out.println("[Sell] Sell  Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if (sellResut == null || !sellResut.success) {
+            return "Sell fail: " + (sellResut == null ? "" : sellResut.message);
+        }
+
+        result.append("Sell ").append(market.getCode()).append(" OK!\n Uuid: ")
+                .append(sellResut.result.uuid);
+
+        return result.toString();
+    }
+
+    private String sellNow(String id, String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
+        StringBuilder result = new StringBuilder("");
+        String info = message.split(":")[1].trim();
+        Exchange market;
+        Integer percent;
+        try {
+            market = Exchange.valueOf("BTC_" + info.split(",")[0].toUpperCase());
+            percent = Integer.parseInt(info.split(",")[1].trim());
+        } catch (Exception e) {
+            System.out.println("[sellNow] Error: " + e.getMessage());
+            return "Exception " + e.getMessage();
+        }
+
+        if (market == null || market.getCode().equals("")) {
+            return "Market " + info + " not exist";
+        }
+        if (percent <= 0 || percent > 100) {
+            return "Percent invalid " + info.split(",")[1].trim();
+        }
+
+        SettingInfo settingInfo = StorageHandler.getSettingInfo(id);
+        if (!isInputKey(settingInfo)) {
+            return "Please input your key/secrect";
+        }
+
+        Balance balance;
+        Bittrex btx;
+        try {
+            btx = new Bittrex();
+            btx.setKey(settingInfo.getKey(), settingInfo.getSecrect());
+            balance = btx.getBalance(info.split(",")[0].toUpperCase());
+        } catch (Exception e) {
+            System.out.println("[Sellnow] get balance  Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if (balance == null || balance.available == null || balance.available.equals("")) {
+            return "Don't have available of " + market.getCode();
+        }
+
+        BigDecimal quantity = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
+
+        MarketResponse sellResut;
+        try {
+            sellResut = btx.sellLimit(market, quantity, MainProcess.listBittrexCoin.get(market).low);
+        } catch (Exception e) {
+            System.out.println("[Sellnow] Sell  Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if (sellResut == null || !sellResut.success) {
+            return "Sellnow fail: " + (sellResut == null ? "" : sellResut.message);
+        }
+
+        result.append("Sell ").append(market.getCode()).append(" OK!\n Uuid: ")
+                .append(sellResut.result.uuid);
+
+        return result.toString();
+    }
+
+    private String buyNow(String id, String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
+        StringBuilder result = new StringBuilder("");
+        String info = message.split(":")[1].trim();
+        Exchange market;
+        Integer percent;
+        try {
+            market = Exchange.valueOf("BTC_" + info.split(",")[0].toUpperCase());
+            percent = Integer.parseInt(info.split(",")[1].trim());
+        } catch (Exception e) {
+            System.out.println("[buyNow] Error: " + e.getMessage());
+            return "Exception " + e.getMessage();
+        }
+
+        if (market == null || market.getCode().equals("")) {
+            return "Market " + info + " not exist";
+        }
+        if (percent <= 0 || percent > 100) {
+            return "Percent invalid " + info.split(",")[1].trim();
+        }
+
+        SettingInfo settingInfo = StorageHandler.getSettingInfo(id);
+        if (!isInputKey(settingInfo)) {
+            return "Please input your key/secrect";
+        }
+
+        Balance balance;
+        Bittrex btx;
+        try {
+            btx = new Bittrex();
+            btx.setKey(settingInfo.getKey(), settingInfo.getSecrect());
+            balance = btx.getBalance("BTC");
+        } catch (Exception e) {
+            System.out.println("[buyNow] get balance  Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if (balance == null || balance.available == null || balance.available.equals("")) {
+            return "Don't have available of " + market.getCode();
+        }
+
+        BigDecimal available = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
+
+        BigDecimal quantity = available.divide(MainProcess.listBittrexCoin.get(market).high, 3, RoundingMode.HALF_UP);
+
+        MarketResponse buyResut;
+        try {
+            buyResut = btx.buyLimit(market, quantity, MainProcess.listBittrexCoin.get(market).high);
+        } catch (Exception e) {
+            System.out.println("[buyNow] Sell  Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if (buyResut == null || !buyResut.success) {
+            return "buyNow fail: " + (buyResut == null ? "" : buyResut.message);
+        }
+
+        result.append("Buy ").append(market.getCode()).append(" OK!\n Uuid: ")
+                .append(buyResut.result.uuid);
+
+        return result.toString();
+    }
+
+    private String cancelOrder(String id, String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
+        String uuid = message.split(":")[1].trim();
+
+
+        if (uuid.equals("")) {
+            return "uuid " + uuid + " not exist";
+        }
+
+        SettingInfo settingInfo = StorageHandler.getSettingInfo(id);
+        if (!isInputKey(settingInfo)) {
+            return "Please input your key/secrect";
+        }
+
+        MarketResponse response;
+        Bittrex btx;
+        try {
+            btx = new Bittrex();
+            btx.setKey(settingInfo.getKey(), settingInfo.getSecrect());
+            response = btx.cancelOrder(uuid);
+        } catch (Exception e) {
+            System.out.println("[CancelOrder] Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        if(!response.success) {
+            return "Cancel order fail, uuid: " + uuid + ", message: " + response.message;
+        }
+
+        return "Cancel order " + uuid + " success!";
+    }
+
+    private String cancelAllOrder(String id, String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
+        String info = message.split(":")[1].trim();
+        Exchange market;
+        try {
+            market = Exchange.valueOf("BTC_" + info.toUpperCase());
+        } catch (Exception e) {
+            System.out.println("[cancelAllOrder] Error: " + e.getMessage());
+            return "Exception " + e.getMessage();
+        }
+
+        if (market == null || market.getCode().equals("")) {
+            return "Market " + info + " not exist";
+        }
+
+        SettingInfo settingInfo = StorageHandler.getSettingInfo(id);
+        if (!isInputKey(settingInfo)) {
+            return "Please input your key/secrect";
+        }
+
+        List<MarketResponse> response = new ArrayList<>();
+        Bittrex btx;
+        try {
+            btx = new Bittrex();
+            btx.setKey(settingInfo.getKey(), settingInfo.getSecrect());
+            Order[] orders = btx.getOpenOrders();
+            if (orders == null || orders.length == 0) {
+                return "Market " + market.getCode() + " don't have any order";
+            }
+            for (Order order : orders) {
+                if (order.exchange.equals(market)) {
+                    response.add(btx.cancelOrder(order.orderUuid));
+                }
+            }
+
+        } catch (Exception e) {
+            System.out.println("[cancelAllOrder] Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+        List<String> fail = response.stream().filter(balance -> !balance.success).map(balance -> balance.message).collect(Collectors.toList());
+
+        if (fail.size() != 0) {
+            return "Cancel " + fail.size() + " order fail! Message: " + fail.get(0);
+        }
+
+        return "Cancel order success!";
+    }
+
+    private String getOrder(String id, String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
+        String uuid = message.split(":")[1].trim();
+
+        if (uuid.equals("")) {
+            return "uuid " + uuid + " not exist";
+        }
+
+        SettingInfo settingInfo = StorageHandler.getSettingInfo(id);
+        if (!isInputKey(settingInfo)) {
+            return "Please input your key/secrect";
+        }
+
+        Order response;
+        Bittrex btx;
+        try {
+            btx = new Bittrex();
+            btx.setKey(settingInfo.getKey(), settingInfo.getSecrect());
+            response = btx.getOrder(uuid);
+        } catch (Exception e) {
+            System.out.println("[getOrder] Error");
+            e.printStackTrace();
+            return "Exception " + e.getMessage();
+        }
+
+
+        return response.toString();
+    }
+
+    private boolean isValidInput(String message) {
+        String[] info = message.split(":");
+        return info.length == 2;
     }
 }
