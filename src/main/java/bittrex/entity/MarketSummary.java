@@ -39,6 +39,6 @@ public class MarketSummary extends Result {
 
     public String toString() {
         return "[MarketSummary] MarketName " + marketName.getCode() + "\nHigh " + high + "\nLow " + low + "\nLast " + last +
-                "\nTimeStamp " + timeStamp + "\nPrevDay " + prevDay;
+                "\nTimeStamp " + timeStamp + "\nBaseVolume " + baseVolume +"\nPrevDay " + prevDay;
     }
 }

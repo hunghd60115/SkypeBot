@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  */
 public class SkypeHandler {
     // Group Bitification
-    private final String GROUP_ID = "a8668b3db92941a198546ed73c33ca51";
+    //private final String GROUP_ID = "a8668b3db92941a198546ed73c33ca51";
     private final String TOPIC = "Bitification - ";
     private final String HELP_MESSAGE = "1) Update, add coin - set: (coin), (baseValue)\n" +
             " Ex  set: xvg, 0.0003\n" +
@@ -29,7 +29,7 @@ public class SkypeHandler {
             "2) Remove coin from list - rm: (coin)\n" +
             " Ex  rm: xvg\n" +
             " \n" +
-            "3) Get list current tracking coin@- gcl\n" +
+            "3) Get list current tracking coinï¿½@- gcl\n" +
             " Ex  gcl\n" +
             " \n" +
             "4) Set dif (percent) - using for notification. - setdif:\n" +
@@ -48,7 +48,10 @@ public class SkypeHandler {
             " Ex   gov: pot, 40\n" +
             "\n" +
             "9) Get current USDT of BTC\n" +
-            "  Ex:   getbtc";
+            "  Ex:   getbtc"+
+            "\n" +
+            "10) Get other currency.\n" +
+            "  Ex:   getother: usdt-btc";
 
     private final String ORDER_MESSAGE = "1) Add, edit, remove key. \n" +
             " setkey: ( key), (secrect)   Ex: setkey: xxxxx, xxxxx\n" +
@@ -87,8 +90,6 @@ public class SkypeHandler {
             "10) cancel all order (buy + sell) of one coin. \n" +
             "  cao: (coin)    Ex: cao: POT ";
 
-    private final String LIMIT_SELL = "LIMIT_SELL";
-    private final String LIMIT_BUY = "LIMIT_BUY";
     // https://www.reddit.com/r/CryptoCurrency/comments/7ecga1/how_small_an_amount_can_you_trade_on_bittrex/
     private final BigDecimal MIN_TRADE = new BigDecimal(0.0005);
 
@@ -96,21 +97,17 @@ public class SkypeHandler {
     private final BigDecimal WHALE = new BigDecimal(0.5);
 
     public SkypeHandler() {
-        skype = new Skype("xxxxx@gmail.com", "xxxxx^");
+        skype = new Skype("username", "password");
     }
 
     public void init() {
         // Listen message from group
         System.out.println("[init] Add group listener");
-        skype.addGroupMessageListener((group, user, message) -> {
-            handleGroupMessage(group, user, message);
-        });
+        skype.addGroupMessageListener(this::handleGroupMessage);
 
         // Listen message from user
         System.out.println("[init] Add user listener");
-        skype.addUserMessageListener(((user, message) -> {
-            handleUserMessage(user, message);
-        }));
+        skype.addUserMessageListener(this::handleUserMessage);
 
         try {
             System.out.println("[init] connect");
@@ -128,22 +125,11 @@ public class SkypeHandler {
 
         if (isGroup) {
             List<Group> groups =  skype.getGroups();
-            groups.stream().filter(group -> group.getId().equals(id)).forEach(group -> {
-                group.sendMessage(message);
-            });
+            groups.stream().filter(group -> group.getId().equals(id)).forEach(group -> group.sendMessage(message));
         } else {
             List<User> users = skype.getContacts();
-            users.stream().filter(user -> user.getUsername().equals(id)).forEach(user -> {
-                user.sendMessage(message);
-            });
+            users.stream().filter(user -> user.getUsername().equals(id)).forEach(user -> user.sendMessage(message));
         }
-    }
-
-    public void changeGroupTopic(String topicName) {
-        List<Group> groups =  skype.getGroups();
-        groups.stream().filter(group -> group.getId().equals(GROUP_ID)).forEach(group -> {
-            group.changeTopic(TOPIC + topicName);
-        });
     }
 
     private void handleGroupMessage(Group group, User user, String message) {
@@ -151,9 +137,9 @@ public class SkypeHandler {
         if (message.toLowerCase().contains("hello")) {
             group.sendMessage("Hello " + user.getUsername());
         } else if (message.toLowerCase().contains("set:")) {
-            updateTrackingCoin(group, user, message, group.getId(), true);
+            group.sendMessage(updateTrackingCoin(message, group.getId(), true));
         } else if (message.toLowerCase().contains("get:")) {
-            getCoin(group, user, message, true);
+            group.sendMessage(getCoin(message));
         } else if (message.toLowerCase().contains("gcl")) {
             String listCoint = getCurrentTrackingCoin(group.getId());
             group.sendMessage(listCoint);
@@ -168,8 +154,8 @@ public class SkypeHandler {
             group.sendMessage(getOrderBook(message));
         } else if (message.toLowerCase().contains("gov:")) {
             group.sendMessage(getVol(message));
-        } else if (message.toLowerCase().contains("getbtc")) {
-            group.sendMessage("Will available soon");
+        } else if (message.toLowerCase().contains("getother:")) {
+            group.sendMessage(getOther(message));
         } else if (message.toLowerCase().contains("-help")) {
             group.sendMessage(HELP_MESSAGE);
         }
@@ -178,8 +164,7 @@ public class SkypeHandler {
     private void handleUserMessage(User user, String message) {
         if (user.getUsername().equals("hunghd60115")) {
             if (message.toLowerCase().contains("setinterval:")) {
-                int interval = Integer.parseInt(message.split(":")[1].trim());
-                MainProcess.timeInterval = interval;
+                MainProcess.timeInterval = Integer.parseInt(message.split(":")[1].trim());
             } else if (message.toLowerCase().contains("getinterval")) {
                 user.sendMessage("Interval: " + MainProcess.timeInterval);
             }
@@ -195,9 +180,9 @@ public class SkypeHandler {
         } if (message.toLowerCase().contains("hello")) {
             user.sendMessage("Hello " + user.getUsername());
         } else if (message.toLowerCase().contains("set:")) {
-            updateTrackingCoin(null, user, message, user.getUsername(), false);
+            user.sendMessage(updateTrackingCoin(message, user.getUsername(), false));
         } else if (message.toLowerCase().contains("get:")) {
-            getCoin(null, user, message, false);
+            user.sendMessage(getCoin(message));
         } else if (message.toLowerCase().contains("gcl")) {
             String listCoint = getCurrentTrackingCoin(user.getUsername());
             user.sendMessage(listCoint);
@@ -241,6 +226,8 @@ public class SkypeHandler {
             user.sendMessage(cancelOrder(user.getUsername(), message));
         } else if (message.toLowerCase().contains("cao:")) {
             user.sendMessage(cancelAllOrder(user.getUsername(), message));
+        } else if (message.toLowerCase().contains("getother:")) {
+            user.sendMessage(getOther(message));
         } else if (message.toLowerCase().contains("-help")) {
             user.sendMessage(HELP_MESSAGE);
         } else if (message.toLowerCase().contains("-xxx")) {
@@ -264,52 +251,37 @@ public class SkypeHandler {
         return result.toString();
     }
 
-    private void updateTrackingCoin(Group group, User user, String message, String id, boolean isGroup) {
+    private String updateTrackingCoin(String message, String id, boolean isGroup) {
         if (!isValidInput(message)) {
-            if (isGroup) {
-                group.sendMessage("Missing value, please input value.");
-            } else {
-                user.sendMessage("Missing value, please input value.");
-            }
-            return ;
+            return "Missing value, please input value.";
         }
-        String info = message.split(":")[1].trim();
-        Exchange market = null;
-        BigDecimal baseValue = null;
+        String[] info = message.split(":")[1].trim().split(",");
+        if (info.length != 2) {
+            return "Missing input something... " + message;
+        }
+        Exchange market;
+        BigDecimal baseValue;
         try {
-            market = Exchange.valueOf("BTC_" + info.split(",")[0].trim().toUpperCase());
-            baseValue = new BigDecimal(info.split(",")[1].trim());
+            market = Exchange.valueOf("BTC_" + info[0].trim().toUpperCase());
+            baseValue = new BigDecimal(info[1].trim());
         } catch (Exception e) {
             System.out.println("[updateTrackingCoin] Error: " + e.getMessage());
+            e.printStackTrace();
+            return "Error: " + e.getMessage();
         }
 
         // If wrong market
         if (market == null || market.getCode().equals("")) {
-            if (isGroup) {
-                group.sendMessage(user.getUsername() + " input wrong market: " + info.split(",")[0]);
-            } else {
-                user.sendMessage(user.getUsername() + " input wrong market: " + info.split(",")[0]);
-            }
-        } else if (baseValue == null) {
-            if (isGroup) {
-                group.sendMessage(user.getUsername() + " input wrong base value: " + info.split(",")[1]);
-            } else {
-                user.sendMessage(user.getUsername() + " input wrong base value: " + info.split(",")[1]);
-            }
-        } else {
-
-            //update coin
-            TrackingCoin coin = new TrackingCoin(market.getCode(), id);
-            coin.setBase(baseValue.toString());
-            coin.setType(isGroup);
-            StorageHandler.upsertCoin(coin);
-
-            if (isGroup) {
-                group.sendMessage("Hi " + user.getUsername() + ", update success! market: " + market + ", base: " + baseValue);
-            } else {
-                user.sendMessage("Hi " + user.getUsername() + ", update success! market: " + market + ", base: " + baseValue);
-            }
+            return "Input wrong market: " + info[0];
         }
+
+        //update coin
+        TrackingCoin coin = new TrackingCoin(market.getCode(), id);
+        coin.setBase(baseValue.toString());
+        coin.setType(isGroup);
+        StorageHandler.upsertCoin(coin);
+
+        return "update success! market: " + market + ", base: " + baseValue;
     }
 
     private String removeTrackingCoin(String message, String id) {
@@ -333,38 +305,26 @@ public class SkypeHandler {
     }
 
     // Get coin user
-    private void getCoin(Group group, User user, String message, boolean isGroup) {
+    private String getCoin(String message) {
         if (!isValidInput(message)) {
-            if (isGroup) {
-                group.sendMessage("Missing value, please input value.");
-            } else {
-                user.sendMessage("Missing value, please input value.");
-            }
-            return ;
+            return "Missing value, please input value.";
         }
         String info = message.split(":")[1].trim();
-        Exchange market = null;
+        Exchange market;
         try {
             market = Exchange.valueOf("BTC_" + info.toUpperCase());
         } catch (Exception e) {
             System.out.println("[updateTrackingCoin] Error: " + e.getMessage());
+            e.printStackTrace();
+            return "Error: " + e.getMessage();
         }
 
         if (market == null || market.getCode().equals("")) {
-            if (isGroup) {
-                group.sendMessage("Hi " + user.getUsername() + "! " + "Market " + info + " not exist");
-            } else {
-                user.sendMessage("Hi " + user.getUsername() + "! " + "Market " + info + " not exist");
-            }
-            return;
+            return "Market " + info + " not exist";
         }
 
         MarketSummary marketSummary = MainProcess.listBittrexCoin.get(market);
-        if (isGroup) {
-            group.sendMessage("Hi " + user.getUsername() + "! " + marketSummary.toString());
-        } else {
-            user.sendMessage("Hi " + user.getUsername() + "! " + marketSummary.toString());
-        }
+        return marketSummary.toString();
     }
 
     private String getDiff(String id) {
@@ -638,7 +598,7 @@ public class SkypeHandler {
         if (market == null || market.getCode().equals("")) {
             return "Market " + info + " not exist";
         }
-        if (percent <= 0 || percent >= 100) {
+        if (percent <= 0 || percent > 100) {
             return "Percent invalid " + info.split(",")[2].trim();
         }
 
@@ -663,7 +623,12 @@ public class SkypeHandler {
             return "Don't have available btc";
         }
 
-        BigDecimal available = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
+        BigDecimal available;
+        if (percent == 100) {
+            available = new BigDecimal(balance.available);
+        } else {
+            available = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
+        }
 
         if (available.compareTo(MIN_TRADE) <= 0) {
             return "Minimum trade is 0.0005 btc. Your available is " + balance.available + ", " + percent + "% is " + available;
@@ -673,7 +638,7 @@ public class SkypeHandler {
 
         MarketResponse buyResut;
         try {
-            buyResut = btx.buyLimit(market,quantity,base);
+            buyResut = btx.buyLimit(market, quantity, base);
         } catch (Exception e) {
             System.out.println("[Buy] Buy  Error");
             e.printStackTrace();
@@ -735,9 +700,12 @@ public class SkypeHandler {
         if (balance == null || balance.available == null || balance.available.equals("")) {
             return "Don't have available of " + market.getCode();
         }
-
-        BigDecimal quantity = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
-
+        BigDecimal quantity;
+        if (percent == 100) {
+            quantity = new BigDecimal(balance.available);
+        } else {
+            quantity = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
+        }
         MarketResponse sellResut;
         try {
             sellResut = btx.sellLimit(market, quantity, sellPrice);
@@ -801,8 +769,12 @@ public class SkypeHandler {
             return "Don't have available of " + market.getCode();
         }
 
-        BigDecimal quantity = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
-
+        BigDecimal quantity;
+        if (percent == 100) {
+            quantity = new BigDecimal(balance.available);
+        } else {
+            quantity = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
+        }
         MarketResponse sellResut;
         try {
             sellResut = btx.sellLimit(market, quantity, MainProcess.listBittrexCoin.get(market).low);
@@ -816,8 +788,17 @@ public class SkypeHandler {
             return "Sellnow fail: " + (sellResut == null ? "" : sellResut.message);
         }
 
+        Order order;
+        try {
+            order = btx.getOrder(sellResut.result.uuid);
+        } catch (Exception e) {
+            System.out.println("[Sellnow] Get order error, uuid " + sellResut.result.uuid);
+            e.printStackTrace();
+            return "Get order error, uuid " + sellResut.result.uuid + e.getMessage();
+        }
+
         result.append("Sell ").append(market.getCode()).append(" OK!\n Uuid: ")
-                .append(sellResut.result.uuid);
+                .append(sellResut.result.uuid).append("\n Actual sell price: ").append(order.pricePerUnit.toString());
 
         return result.toString();
     }
@@ -866,15 +847,19 @@ public class SkypeHandler {
             return "Don't have available of " + market.getCode();
         }
 
-        BigDecimal available = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
-
+        BigDecimal available;
+        if (percent == 100) {
+            available = new BigDecimal(balance.available);
+        } else {
+            available = new BigDecimal(balance.available).multiply(new BigDecimal(percent)).divide(BigDecimal.TEN.multiply(BigDecimal.TEN), 5, RoundingMode.HALF_UP);
+        }
         BigDecimal quantity = available.divide(MainProcess.listBittrexCoin.get(market).high, 3, RoundingMode.HALF_UP);
 
         MarketResponse buyResut;
         try {
             buyResut = btx.buyLimit(market, quantity, MainProcess.listBittrexCoin.get(market).high);
         } catch (Exception e) {
-            System.out.println("[buyNow] Sell  Error");
+            System.out.println("[buyNow] Buy  Error");
             e.printStackTrace();
             return "Exception " + e.getMessage();
         }
@@ -883,8 +868,17 @@ public class SkypeHandler {
             return "buyNow fail: " + (buyResut == null ? "" : buyResut.message);
         }
 
+        Order order;
+        try {
+            order = btx.getOrder(buyResut.result.uuid);
+        } catch (Exception e) {
+            System.out.println("[BuyNow] Get order error, uuid " + buyResut.result.uuid);
+            e.printStackTrace();
+            return "Get order error, uuid " + buyResut.result.uuid + e.getMessage();
+        }
+
         result.append("Buy ").append(market.getCode()).append(" OK!\n Uuid: ")
-                .append(buyResut.result.uuid);
+                .append(buyResut.result.uuid).append("\n Actual buy price: ").append(order.pricePerUnit.toString());
 
         return result.toString();
     }
@@ -1010,5 +1004,33 @@ public class SkypeHandler {
     private boolean isValidInput(String message) {
         String[] info = message.split(":");
         return info.length == 2;
+    }
+
+    private String getOther(String message) {
+        if (!isValidInput(message)) {
+            return "Missing value, please input value.";
+        }
+        String[] info = message.split("-");
+        if (info.length != 2) {
+            return "Missing - between market";
+        }
+        MarketSummary[] marketSummary;
+        try {
+            marketSummary = new Bittrex().getMarketSummary(message.split(":")[1].trim().toUpperCase());
+        } catch (Exception e) {
+            System.out.println("[getOther] Error");
+            e.printStackTrace();
+            return "[getOther] Exception " + e.getMessage();
+
+        }
+
+        if (marketSummary == null || marketSummary.length == 0) {
+            return "Market empty";
+        }
+        StringBuilder result = new StringBuilder("");
+        for (MarketSummary mrk : marketSummary) {
+            result.append(mrk.toString()).append("\n");
+        }
+        return result.toString();
     }
 }

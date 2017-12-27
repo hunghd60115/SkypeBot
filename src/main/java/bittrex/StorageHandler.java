@@ -14,7 +14,7 @@ import java.util.List;
  */
 public class StorageHandler {
 
-    public static final String storageConnectionString = "";
+    public static final String storageConnectionString = "ConnectionString";
     static final String TABLE_COIN = "TrackingCoin";
     static final String TABLE_SETTING = "SettingInfo";
 

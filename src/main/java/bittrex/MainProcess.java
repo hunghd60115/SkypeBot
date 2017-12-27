@@ -128,9 +128,7 @@ public class MainProcess {
 
 
                 // If last change != null and = current change => same change, don't need to notify
-                if (lastChange != null && curChange.equals(lastChange)) {
-//                    System.out.println("Change the same");
-                } else {
+                if (lastChange == null || !curChange.equals(lastChange)) {
 //                    System.out.println("Change dif: " + curChange);
                     // else notify if greater than DIFF
                     SettingInfo settingInfo = StorageHandler.getSettingInfo(id);
@@ -138,13 +136,9 @@ public class MainProcess {
                     if (curChange % diff == 0) {
                         // Set last change = current Change if have change.
                         coin.setLastChange(curChange);
-                        StringBuilder msg = new StringBuilder("Coin ");
-                        msg.append(exchange).append(" has change ").append(curChange).append("% ")
-                                .append("\nBase: ").append(baseValue)
-                                .append("\nCurrent: ").append(currentValue)
-                                .append("\nUpdated: ").append(marketSummary.timeStamp);
-
-                        skypeHandler.sendMsg(msg.toString(), id, coin.getType());
+                        skypeHandler.sendMsg("Coin " + exchange + " has change " + curChange + "% " +
+                                "\nBase: " + baseValue + "\nCurrent: " + currentValue +
+                                "\nUpdated: " + marketSummary.timeStamp, id, coin.getType());
                     }
                 }
                 StorageHandler.upsertCoin(coin);

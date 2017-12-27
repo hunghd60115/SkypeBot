@@ -204,7 +204,18 @@ public class Bittrex {
     public MarketSummary[] getMarketSummaries() throws BittrexException, IOException {
         String path = "/v1.1/public/getmarketsummaries";
         URIBuilder builder = getPrivateUriBuilder(path);
-        MarketSummaryResponse result = doHttpGet(builder, MarketSummaryResponse.class, new ArrayList<>());
+        MarketSummariesResponse result = doHttpGet(builder, MarketSummariesResponse.class, new ArrayList<>());
+        return result.result;
+    }
+
+    public MarketSummary[] getMarketSummary(String market) throws BittrexException, IOException {
+        String path = "/v1.1/public/getmarketsummary";
+
+        List<NameValuePair> nameValuePair = new ArrayList<>();
+        nameValuePair.add(new BasicNameValuePair("market", market));
+
+        URIBuilder builder = getPrivateUriBuilder(path).setParameters(nameValuePair);
+        MarketSumaryResponse result = doHttpGet(builder, MarketSumaryResponse.class, new ArrayList<>());
         return result.result;
     }
 
